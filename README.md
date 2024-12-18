@@ -1,5 +1,4 @@
 # Проектный практикум МФТИ - Детекция признаков депрессии по постам в социальных сетях
-# Telegram Bot for Detecting Signs of Depression in Text
 
 ### О проекте
 
