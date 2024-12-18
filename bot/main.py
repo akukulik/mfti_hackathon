@@ -1,40 +1,46 @@
 import os
-import asyncio
-import httpx
+import asyncio # для работы с асинхронным кодом
+import httpx # для выполнения асинхронных HTTP-запросов
 
-from typing import Any
+from typing import Any # для аннотаций типов
 
-from aiogram.filters import Command
-from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command # фильтр для обработки команд Telegram
+from dotenv import load_dotenv # для загрузки переменных окружения из .env файла
+from aiogram import Bot, Dispatcher, types # основные классы для работы с Telegram API
 
 from translator import YandexTranslationService, get_translator_service
 
+# Загрузка переменных окружения из .env файла
 load_dotenv()
 
 
+# Класс конфигурации для хранения настроек приложения
 class Config:
     # Yandex Translator
-    YANDEX_API_KEY = os.getenv('YANDEX_API_KEY')
-    YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID')
+    YANDEX_API_KEY = os.getenv('YANDEX_API_KEY') # API-ключ для Яндекс Переводчика
+    YANDEX_FOLDER_ID = os.getenv('YANDEX_FOLDER_ID') # ID папки в Яндекс Облаке
     # Telegram
-    BOT_TOKEN = os.getenv('BOT_TOKEN')
-    MODEL_SERVICE_URL = 'http://model:8000/predict'
+    BOT_TOKEN = os.getenv('BOT_TOKEN')  # Токен Telegram-бота
+    MODEL_SERVICE_URL = 'http://model:8000/predict'   # URL сервиса для обработки текстов нейромоделью
 
-
+# Инициализация сервиса перевода с использованием API-ключа и ID папки
 translator_service: YandexTranslationService = get_translator_service(Config.YANDEX_API_KEY, Config.YANDEX_FOLDER_ID)
 
+# Создание экземпляра Telegram-бота
 bot = Bot(token=Config.BOT_TOKEN)
 
+# Создание диспетчера для обработки событий
 dp = Dispatcher()
 
 
+# Функция для форматирования результатов работы нейросети
 def format_model_results(result: list[dict[str, Any]]) -> str:
     """Форматирует результаты из нейронной модели."""
 
-    label: str = result[0]['label']
-    score: str = result[0]['score']
+    label: str = result[0]['label'] # Получаем метку классификации
+    score: str = result[0]['score'] # Получаем уверенность модели
 
+    # Определяем текстовое описание по метке
     match label:
         case 'not depression':
             text = 'Депрессия отсутствует или мало выражена'
@@ -49,6 +55,7 @@ def format_model_results(result: list[dict[str, Any]]) -> str:
     return text
 
 
+# Обработчик команд /start и /help
 @dp.message(Command(commands=['start', 'help']))
 async def send_welcome(message: types.Message):
     await message.reply(
@@ -58,23 +65,29 @@ async def send_welcome(message: types.Message):
     )
 
 
+# Обработчик всех других текстовых сообщений
 @dp.message()
 async def process_message(message: types.Message):
-    user_text = message.text
+    user_text = message.text # Получаем текст сообщения пользователя
 
+    # Перевод текста с помощью сервиса Yandex Translation
     translated_text = translator_service.translate_text(user_text).translated_text
 
+    # Отправка переведенного текста в сервис модели
     async with httpx.AsyncClient() as client:
         response = await client.post(Config.MODEL_SERVICE_URL, json={'text': translated_text})
 
+    # Если модель успешно обработала запрос, отправляем результат пользователю
     if response.status_code == 200:
         result = format_model_results(response.json()['result'])
 
         await message.reply(f'Результат обработки:\n\n{result}')
     else:
+        # В случае ошибки обработки отправляем уведомление
         await message.reply('Произошла ошибка при обработке запроса.')
 
 
+# Асинхронная функция запуска бота
 async def main():
     await dp.start_polling(bot)
 
