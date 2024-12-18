@@ -16,6 +16,10 @@ simpletransformers 0.63.7
 pandas 1.2.5
 scikit-learn 0.23.1
 tqdm 4.62.3
+fastapi
+uvicorn
+torch
+transformers
 
 Prepared datasets
 
