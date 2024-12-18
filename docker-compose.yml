@@ -1,0 +1,20 @@
+version: '3.8'
+name: hackaton
+
+services:
+  bot:
+    build: ./bot
+    env_file: .env
+    depends_on:
+      - model
+    networks:
+      - bot_network
+
+  model:
+    build: ./model
+    networks:
+      - bot_network
+
+networks:
+  bot_network:
+    driver: bridge
